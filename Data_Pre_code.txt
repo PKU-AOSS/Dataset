@@ -1,0 +1,83 @@
+from datetime import datetime
+import sklearn
+import xgboost as xgb
+import lightgbm as lgb
+import catboost
+import pandas as pd
+import numpy as np
+import time
+
+def obt_timeindex(s_time,e_time,freq):
+    date_range = pd.date_range(s_time,e_time, freq=freq)
+    df1 = pd.DataFrame(index=date_range).reset_index()
+    Timeindex = pd.DataFrame(df1)
+    Timeindex.rename(columns={'index':'Timeindex'},inplace=True)
+    # Timeindex['Date'] = Timeindex['Date'].apply(int)
+    return Timeindex
+
+def combine_pivot(tar_data,Timeindex):
+    freq_data = pd.merge(tar_data, Timeindex,left_on = list(tar_data)[0],right_on=list(Timeindex)[0],how = 'left')
+    freq_data[list(Timeindex)[0]] = freq_data[list(Timeindex)[0]].fillna(method='bfill')
+    tar_data_freq = freq_data.pivot_table(index=list(Timeindex)[0],aggfunc='mean').reset_index().sort_index(axis = 0)
+    return tar_data_freq
+
+def obt_Meanhour(filepath,sheet_name,time_start,time_end,s_time, e_time,freq):   
+    rdata = pd.read_excel(filepath,sheet_name) 
+    rdata.loc[:,'NewTime'] = pd.to_datetime(rdata.loc[:,list(rdata)[0]])  
+    tar_data = rdata[(rdata['NewTime'] >= time_start) & (rdata['NewTime'] < time_end)]
+    # tar_data['hour'] = tar_data['NewTime'].dt.hour
+    # tar_data['Time'] = tar_data['NewTime'].map(lambda x: str(x)[0:15])
+    Timeindex = obt_timeindex(s_time, e_time,freq)
+    tar_data_freq = combine_pivot(tar_data,Timeindex)
+    return tar_data_freq 
+
+def obt_std_data(Com1_data_f5min,freq2 = '1h',s_time2 = '2019-09-06 12:00:00',e_time2 = '2019-10-31 23:59:00',):
+    Timeindex = obt_timeindex(s_time2,e_time2,freq2)
+    Com1_data_freq = combine_pivot(Com1_data_f5min,Timeindex)
+    Com1_data_freq.rename(columns={list(Com1_data_freq)[0]:'Time'},inplace=True)
+    return Com1_data_freq  
+
+def form_stdtime_h(data):
+    s_time = '2019-09-06 12:00:00'
+    e_time = '2019-10-31 23:59:00'
+    freq = '1h'
+    Timeindex = obt_timeindex(s_time, e_time,freq)
+    Com_data = pd.merge(Timeindex,data,left_on = list(Timeindex)[0],right_on='NewTime',how = 'left')
+    return Com_data
+
+def obt_O3_freq(O3_data_freq):
+    O3_data = form_stdtime_h(O3_data_freq)
+    O3_data['NUM'] = range(len(O3_data))
+    O3_data = O3_data.drop(columns=['Time', 'NewTime'])
+    return O3_data
+
+def sel_day_data(alldata):
+    alldata['hour'] = alldata['Timeindex'].dt.hour
+    O3_day = alldata[(alldata['hour'] < 17)&(alldata['hour'] >= 9)]
+    O3_day = O3_day.dropna(axis=0,subset=subset)
+    return O3_day
+
+if __name__ == '__main__':
+  Nor_data_path = r'..\2019_09-10_1min.xlsx'
+  Voc_data_path = r'..\VOC_1h-10.xlsx'
+  time_start = datetime(2019,9,6,12,1)
+  time_end = datetime(2019,11,1,0)
+  s_time1 = '2019-09-06 12:00:00'
+  e_time1 = '2019-10-31 23:59:00'
+  Com1_data_10fmin['min'] = Com1_data_10fmin['Time'].dt.minute
+  Com1_data_10min = Com1_data_10fmin.loc[Com1_data_10fmin['min'] == 10,]
+  O3_data_10min = Com1_data_10fmin.loc[Com1_data_10fmin['min'] == 10,['Time','O3']]
+  Com1_data_10min['NewTime'] = Com1_data_10min['Time'].map(lambda x: str(x)[0:13])
+  Com1_data_10min['NewTime'] = pd.to_datetime(Com1_data_10min['NewTime'])
+  O3_data_10min['NewTime'] = O3_data_10min['Time'].map(lambda x: str(x)[0:13])
+  O3_data_10min['NewTime'] = pd.to_datetime(O3_data_10min['NewTime'])
+  Vocdata = pd.read_excel(Voc_data_path,sheet_name)
+  Com2_data_10min = pd.merge(Vocdata,Com1_data_10min,left_on = list(Vocdata)[0],right_on=list(Com1_data_10min)[-1],how = 'left')
+  Com2_data_10min = Com2_data_10min.drop(columns=['Time','min','NewTime','O3'])
+  Com2_data_1h10min = copy.deepcopy(Com2_data_10min)
+  Com2_data_1h10min =  obt_com_step_freq(Com2_data_1h10min,step = 1)
+  O3_1h_all = linkO3_rdata(O3_data_10min,Com2_data_1h10min) 
+  O3_1h_all.drop(0,inplace = True)
+  O3_VOCs = sel_day_data(O3_1h_all)
+
+
